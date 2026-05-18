@@ -1,7 +1,9 @@
 # Platypus
 
-<a href="https://github.com/Project-Platypus/Platypus"><img alt="GitHub Actions status" src="https://github.com/Project-Platypus/Platypus/workflows/Tests/badge.svg?branch=master&event=push"></a>
+[![Test and Publish](https://github.com/Project-Platypus/Platypus/actions/workflows/test-and-publish.yml/badge.svg)](https://github.com/Project-Platypus/Platypus/actions/workflows/test-and-publish.yml)
 [![Documentation Status](https://readthedocs.org/projects/platypus/badge/?version=latest)](http://platypus.readthedocs.org/en/latest/?badge=latest)
+[![PyPI Latest Release](https://img.shields.io/pypi/v/Platypus-Opt.svg)](https://pypi.org/project/Platypus-Opt/)
+
 
 ### What is Platypus?
 
@@ -11,8 +13,8 @@ optimization libraries, including PyGMO, Inspyred, DEAP, and Scipy, by providing
 optimization algorithms and analysis tools for multiobjective optimization.
 It currently supports NSGA-II, NSGA-III, MOEA/D, IBEA, Epsilon-MOEA, SPEA2, GDE3,
 OMOPSO, SMPSO, and Epsilon-NSGA-II.  For more information, see our
-[IPython Notebook](https://gist.github.com/dhadka/ba6d3c570400bdb411c3)
-or our [online documentation](http://platypus.readthedocs.org/en/latest/index.html).
+[examples](examples/)
+and [online documentation](http://platypus.readthedocs.org/en/latest/index.html).
 
 ### Example
 
@@ -45,21 +47,29 @@ To install the latest Platypus release, run the following command:
 To install the latest development version of Platypus, run the following commands:
 
 ```
+    pip install -U build setuptools
     git clone https://github.com/Project-Platypus/Platypus.git
     cd Platypus
-    python setup.py install
+    python -m build
+    python -m pip install --editable .
 ```
 
 #### Anaconda
 
-Platypus is also available via conda-forge. 
+Platypus is also available via conda-forge.
 
 ```
     conda config --add channels conda-forge
     conda install platypus-opt
 ```
 
-For more information see the [feedstock](https://github.com/conda-forge/platypus-opt-feedstock) located here. 
+For more information, see the [feedstock](https://github.com/conda-forge/platypus-opt-feedstock).
+
+### Citation
+
+If you use this software in your work, please cite it as follows (APA style):
+
+> Hadka, D. (2024). Platypus: A Framework for Evolutionary Computing in Python (Version 1.4.1) [Computer software].  Retrieved from https<span>://</span>github.com/Project-Platypus/Platypus.
 
 ### License
 

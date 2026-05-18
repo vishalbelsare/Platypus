@@ -1,4 +1,4 @@
-# Copyright 2015-2018 David Hadka
+# Copyright 2015-2024 David Hadka
 #
 # This file is part of Platypus, a Python module for designing and using
 # evolutionary algorithms (EAs) and multiobjective evolutionary algorithms
@@ -17,120 +17,111 @@
 # You should have received a copy of the GNU General Public License
 # along with Platypus.  If not, see <http://www.gnu.org/licenses/>.
 import math
-import unittest
-from .test_core import createSolution
-from ..indicators import GenerationalDistance, InvertedGenerationalDistance, \
-    EpsilonIndicator, Spacing, Hypervolume
-from ..core import Solution, Problem, POSITIVE_INFINITY
+import pytest
 
-class TestGenerationalDistance(unittest.TestCase):
-    
-    def test(self):
-        reference_set = [createSolution(0, 1), createSolution(1, 0)]
-        gd = GenerationalDistance(reference_set)
-        
-        set = []
-        self.assertEqual(POSITIVE_INFINITY, gd(set))
-        
-        set = [createSolution(0.0, 1.0)]
-        self.assertEqual(0.0, gd(set))
-        
-        set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
-        self.assertEqual(0.0, gd(set))
-        
-        set = [createSolution(2.0, 2.0)]
-        self.assertEqual(math.sqrt(5.0), gd(set))
-        
-        set = [createSolution(0.5, 0.0), createSolution(0.0, 0.5)]
-        self.assertEqual(math.sqrt(0.5)/2.0, gd(set))
+from .._math import POSITIVE_INFINITY
+from ..core import Direction, Problem, Solution
+from ..indicators import (EpsilonIndicator, GenerationalDistance, Hypervolume,
+                          InvertedGenerationalDistance, Spacing)
+from ._utils import createSolution
 
-class TestInvertedGenerationalDistance(unittest.TestCase):
-    
-    def test(self):
-        reference_set = [createSolution(0, 1), createSolution(1, 0)]
-        igd = InvertedGenerationalDistance(reference_set)
-        
-        set = []
-        self.assertEqual(POSITIVE_INFINITY, igd(set))
-        
-        set = [createSolution(0.0, 1.0)]
-        self.assertEqual(math.sqrt(2.0)/2.0, igd(set))
-        
-        set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
-        self.assertEqual(0.0, igd(set))
-        
-        set = [createSolution(2.0, 2.0)]
-        self.assertEqual(2.0*math.sqrt(5.0)/2.0, igd(set))
 
-class TestEpsilonIndicator(unittest.TestCase):
-    
-    def test(self):
-        reference_set = [createSolution(0, 1), createSolution(1, 0)]
-        ei = EpsilonIndicator(reference_set)
-        
-        set = []
-        self.assertEqual(POSITIVE_INFINITY, ei(set))
-        
-        set = [createSolution(0.0, 1.0)]
-        self.assertEqual(1.0, ei(set))
-        
-        set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
-        self.assertEqual(0.0, ei(set))
-        
-        set = [createSolution(2.0, 2.0)]
-        self.assertEqual(2.0, ei(set))
+@pytest.fixture
+def reference_set():
+    return [createSolution(0, 1), createSolution(1, 0)]
 
-class TestSpacing(unittest.TestCase):
-    
-    def test(self):
-        sp = Spacing()
-        
-        set = []
-        self.assertEqual(0.0, sp(set))
-        
-        set = [createSolution(0.5, 0.5)]
-        self.assertEqual(0.0, sp(set))
-        
-        set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
-        self.assertEqual(0.0, sp(set))
-        
-        set = [createSolution(0.0, 1.0), createSolution(0.5, 0.5), createSolution(1.0, 0.0)]
-        self.assertEqual(0.0, sp(set))
-        
-        set = [createSolution(0.0, 1.0), createSolution(0.25, 0.75), createSolution(1.0, 0.0)]
-        self.assertGreater(sp(set), 0.0)
-        
-class TestHypervolume(unittest.TestCase):
-    
-    def test(self):
-        reference_set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
-        hyp = Hypervolume(reference_set)
-        
-        set = []
-        self.assertEqual(0.0, hyp(set))
-        
-        set = [createSolution(0.5, 0.5)]
-        self.assertEqual(0.25, hyp(set))
-        
-        set = [createSolution(0.0, 0.0)]
-        self.assertEqual(1.0, hyp(set))
-        
-        set = [createSolution(1.0, 1.0)]
-        self.assertEqual(0.0, hyp(set))
-        
-        set = [createSolution(0.5, 0.0), createSolution(0.0, 0.5)]
-        self.assertEqual(0.75, hyp(set))
-        
-    def test_maximize(self):
-        reference_set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
-        hyp = Hypervolume(reference_set)
-        
-        problem = Problem(0, 2)
-        problem.directions[:] = Problem.MAXIMIZE
-        s1 = Solution(problem)
-        s2 = Solution(problem)
-        s1.objectives[:] = [0.5, 1.0]
-        s2.objectives[:] = [1.0, 0.5]
-        
-        self.assertEqual(0.75, hyp([s1, s2]))
-        
+def test_gd(reference_set):
+    gd = GenerationalDistance(reference_set)
+
+    set = []
+    assert POSITIVE_INFINITY == gd(set)
+
+    set = [createSolution(0.0, 1.0)]
+    assert 0.0 == gd(set)
+
+    set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
+    assert 0.0 == gd(set)
+
+    set = [createSolution(2.0, 2.0)]
+    assert math.sqrt(5.0) == gd(set)
+
+    set = [createSolution(0.5, 0.0), createSolution(0.0, 0.5)]
+    assert math.sqrt(0.5)/2.0 == gd(set)
+
+def test_igd(reference_set):
+    igd = InvertedGenerationalDistance(reference_set)
+
+    set = []
+    assert POSITIVE_INFINITY == igd(set)
+
+    set = [createSolution(0.0, 1.0)]
+    assert math.sqrt(2.0)/2.0 == igd(set)
+
+    set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
+    assert 0.0 == igd(set)
+
+    set = [createSolution(2.0, 2.0)]
+    assert 2.0*math.sqrt(5.0)/2.0 == igd(set)
+
+def test_eps(reference_set):
+    ei = EpsilonIndicator(reference_set)
+
+    set = []
+    assert POSITIVE_INFINITY == ei(set)
+
+    set = [createSolution(0.0, 1.0)]
+    assert 1.0 == ei(set)
+
+    set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
+    assert 0.0 == ei(set)
+
+    set = [createSolution(2.0, 2.0)]
+    assert 2.0 == ei(set)
+
+def test_spacing():
+    sp = Spacing()
+
+    set = []
+    assert 0.0 == sp(set)
+
+    set = [createSolution(0.5, 0.5)]
+    assert 0.0 == sp(set)
+
+    set = [createSolution(0.0, 1.0), createSolution(1.0, 0.0)]
+    assert 0.0 == sp(set)
+
+    set = [createSolution(0.0, 1.0), createSolution(0.5, 0.5), createSolution(1.0, 0.0)]
+    assert 0.0 == sp(set)
+
+    set = [createSolution(0.0, 1.0), createSolution(0.25, 0.75), createSolution(1.0, 0.0)]
+    assert sp(set) > 0.0
+
+def test_hyp(reference_set):
+    hyp = Hypervolume(reference_set)
+
+    set = []
+    assert 0.0 == hyp(set)
+
+    set = [createSolution(0.5, 0.5)]
+    assert 0.25 == hyp(set)
+
+    set = [createSolution(0.0, 0.0)]
+    assert 1.0 == hyp(set)
+
+    set = [createSolution(1.0, 1.0)]
+    assert 0.0 == hyp(set)
+
+    set = [createSolution(0.5, 0.0), createSolution(0.0, 0.5)]
+    assert 0.75 == hyp(set)
+
+def test_hyp_maximize(reference_set):
+    hyp = Hypervolume(reference_set)
+
+    problem = Problem(0, 2)
+    problem.directions[:] = Direction.MAXIMIZE
+    s1 = Solution(problem)
+    s2 = Solution(problem)
+    s1.objectives[:] = [0.5, 1.0]
+    s2.objectives[:] = [1.0, 0.5]
+
+    assert 0.75 == hyp([s1, s2])

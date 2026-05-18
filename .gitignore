@@ -7,5 +7,7 @@ Platypus.egg-info/
 Platypus_Opt.egg-info/
 build/
 dist/
-private/
+docs/_build/
+docs/make.bat
 .ipynb_checkpoints/
+.idea

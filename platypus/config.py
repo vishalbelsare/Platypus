@@ -1,4 +1,4 @@
-# Copyright 2015-2018 David Hadka
+# Copyright 2015-2024 David Hadka
 #
 # This file is part of Platypus, a Python module for designing and using
 # evolutionary algorithms (EAs) and multiobjective evolutionary algorithms
@@ -16,68 +16,127 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Platypus.  If not, see <http://www.gnu.org/licenses/>.
-from __future__ import absolute_import, division, print_function
 
-import six
-from .types import Real, Binary, Permutation, Subset
-from .operators import GAOperator, CompoundOperator, CompoundMutation, SBX, PM, HUX, BitFlip, PMX, Insertion, Swap, SSX, Replace
-from .core import PlatypusError
-from .evaluator import MapEvaluator
+import inspect
 
-class _PlatypusConfig(object):
-    
+from ._tools import coalesce
+from .errors import PlatypusError
+from .types import Type
+
+
+class _PlatypusConfig:
+    """Global configuration options for Platypus."""
+
     def __init__(self):
-        super(_PlatypusConfig, self).__init__()
-    
-        self.default_variator = {Real : GAOperator(SBX(), PM()),
-                                 Binary : GAOperator(HUX(), BitFlip()),
-                                 Permutation : CompoundOperator(PMX(), Insertion(), Swap()),
-                                 Subset : GAOperator(SSX(), Replace())}
-        
-        self.default_mutator = {Real : PM(),
-                                Binary : BitFlip(),
-                                Permutation : CompoundMutation(Insertion(), Swap()),
-                                Subset : Replace()}
-        
-        self.default_evaluator = MapEvaluator()
-        
+        super().__init__()
+        self._version = None
+        self._default_variator = {}
+        self._default_mutator = {}
+        self._default_logger = None
+        self.default_evaluator = None
         self.default_log_frequency = None
-        
+
+    @property
+    def version(self):
+        return self._version
+
+    def register_default_variator(self, type, operator):
+        """Registers or overwrites the default variator.
+
+        Parameters
+        ----------
+        type : Type
+            The type of decision variable.
+        operator : Variator
+            The default variator to associated with the type.
+        """
+        self._default_variator[type] = operator
+
+    def register_default_mutator(self, type, operator):
+        """Registers or overwrites the default mutator.
+
+        Parameters
+        ----------
+        type : Type
+            The type of decision variable.
+        operator : Mutation
+            The default mutator to associated with the type.
+        """
+        self._default_mutator[type] = operator
+
+    def default_variator(self, problem):
+        """Returns the default variator for the given type or problem.
+
+        Variators must first be registered by :func:`register_default_variator`
+        to be discovered by this method.
+
+        Parameters
+        ----------
+        problem : Type or Problem
+            The type or problem used to select the default variator.
+        """
+        if inspect.isclass(problem) and issubclass(problem, Type):
+            base_type = problem
+        else:
+            if len(problem.types) == 0:
+                raise PlatypusError("problem has no decision variables")
+
+            base_type = problem.types[0].__class__
+
+            if not all([isinstance(t, base_type) for t in problem.types]):
+                raise PlatypusError("must explicitly set variator for mixed types")
+
+        if base_type in self._default_variator:
+            return self._default_variator[base_type]
+
+        for default_type in self._default_variator.keys():
+            if issubclass(base_type, default_type):
+                return self._default_variator[default_type]
+
+        raise PlatypusError(f"no default variator for {base_type}")
+
+    def default_mutator(self, problem):
+        """Returns the default mutator for the given type or problem.
+
+        Mutators must first be registered by :func:`register_default_mutator`
+        to be discovered by this method.
+
+        Parameters
+        ----------
+        problem : Type or Problem
+            The type or problem used to select the default mutator.
+        """
+        if inspect.isclass(problem) and issubclass(problem, Type):
+            base_type = problem
+        else:
+            if len(problem.types) == 0:
+                raise PlatypusError("problem has no decision variables")
+
+            base_type = problem.types[0].__class__
+
+            if not all([isinstance(t, base_type) for t in problem.types]):
+                raise PlatypusError("must explicitly set mutator for mixed types")
+
+        if base_type in self._default_mutator:
+            return self._default_mutator[base_type]
+
+        for default_type in self._default_mutator.keys():
+            if issubclass(base_type, default_type):
+                return self._default_mutator[default_type]
+
+        raise PlatypusError(f"no default mutator for {base_type}")
+
+    def get_logging_extension(self, log_frequency=None):
+        """Returns the default logging extension.
+
+        Parameters
+        ----------
+        log_frequency : int
+            The frequency that run progress log messages are written.  If
+            :code:`None`, uses :code:`default_log_frequency`.
+        """
+        return self._default_logger(coalesce(log_frequency, self.default_log_frequency, 0))
+
+
+# Defaults are configured in __init__.py.
 PlatypusConfig = _PlatypusConfig()
-    
-def default_variator(problem):
-    if len(problem.types) == 0:
-        raise PlatypusError("problem has no decision variables")
-    
-    base_type = problem.types[0].__class__
-    
-    if all([isinstance(t, base_type) for t in problem.types]):
-        if base_type in PlatypusConfig.default_variator:
-            return PlatypusConfig.default_variator[base_type]
-        else:
-            for default_type in six.iterkeys(PlatypusConfig.default_variator):
-                if issubclass(base_type, default_type):
-                    return PlatypusConfig.default_variator[default_type]
-                
-            raise PlatypusError("no default variator for %s" % base_type)
-    else:
-        raise PlatypusError("must define variator for mixed types")
-    
-def default_mutator(problem):
-    if len(problem.types) == 0:
-        raise PlatypusError("problem has no decision variables")
-    
-    base_type = problem.types[0].__class__
-    
-    if all([isinstance(t, base_type) for t in problem.types]):
-        if base_type in PlatypusConfig.default_mutator:
-            return PlatypusConfig.default_mutator[base_type]
-        else:
-            for default_type in six.iterkeys(PlatypusConfig.default_mutator):
-                if issubclass(base_type, default_type):
-                    return PlatypusConfig.default_mutator[default_type]
-                
-            raise PlatypusError("no default mutator for %s" % base_type)
-    else:
-        raise PlatypusError("must define mutator for mixed types")
-    

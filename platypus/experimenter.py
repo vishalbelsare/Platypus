@@ -1,4 +1,4 @@
-# Copyright 2015-2018 David Hadka
+# Copyright 2015-2024 David Hadka
 #
 # This file is part of Platypus, a Python module for designing and using
 # evolutionary algorithms (EAs) and multiobjective evolutionary algorithms
@@ -16,81 +16,76 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Platypus.  If not, see <http://www.gnu.org/licenses/>.
-from __future__ import absolute_import, division, print_function
 
-import six
-import time
 import datetime
 import functools
+import sys
+import time
 from collections import OrderedDict
-from .core import PlatypusError
-from .evaluator import Job, MapEvaluator
 
-try:
-    set
-except NameError:
-    from sets import Set as set
-        
+from .config import PlatypusConfig
+from .errors import PlatypusError
+from .evaluator import Job
+
+
 class ExperimentJob(Job):
 
     def __init__(self, instance, nfe, algorithm_name, problem_name, seed, display_stats):
-        super(ExperimentJob, self).__init__()
+        super().__init__()
         self.instance = instance
         self.nfe = nfe
         self.algorithm_name = algorithm_name
         self.problem_name = problem_name
         self.seed = seed
         self.display_stats = display_stats
-        
+
     def run(self):
         if self.display_stats:
             start_time = time.time()
-            print("Running seed", self.seed, "of", self.algorithm_name, "on",
-                    self.problem_name)
-        
+            print(f"Running seed {self.seed} of {self.algorithm_name} on {self.problem_name}")
+
         self.instance.run(self.nfe)
-    
+
         if self.display_stats:
             end_time = time.time()
-            print("Finished seed", self.seed, "of", self.algorithm_name, "on",
-                    self.problem_name, ":",
-                    datetime.timedelta(seconds=round(end_time-start_time)))
-                    
+            print(f"Finished seed {self.seed} of {self.algorithm_name} on {self.problem_name} in "
+                  f"{datetime.timedelta(seconds=round(end_time-start_time))}")
+
 class IndicatorJob(Job):
-    
+
     def __init__(self, algorithm_name, problem_name, result_set, indicators):
-        super(IndicatorJob, self).__init__()
+        super().__init__()
         self.algorithm_name = algorithm_name
         self.problem_name = problem_name
         self.result_set = result_set
         self.indicators = indicators
-        
+
     def run(self):
         self.results = [indicator(self.result_set) for indicator in self.indicators]
 
 def evaluate_job_generator(algorithms, problems, seeds, nfe, display_stats):
     existing_algorithms = set()
     existing_problems = set()
-    
+
     for i in range(len(algorithms)):
         if isinstance(algorithms[i], tuple):
             algorithm = algorithms[i][0]
-            
+
             if len(algorithms[i]) >= 2:
                 kwargs = algorithms[i][1]
             else:
                 kwargs = {}
-                
+
             if len(algorithms[i]) >= 3:
                 algorithm_name = algorithms[i][2]
             else:
                 algorithm_name = algorithm.__name__
-                
+
         else:
             algorithm = algorithms[i]
             algorithm_name = algorithm.__name__
             kwargs = {}
-                
+
         if algorithm_name in existing_algorithms:
             raise PlatypusError("only one algorithm with name " + algorithm_name + " can be run")
         else:
@@ -99,22 +94,22 @@ def evaluate_job_generator(algorithms, problems, seeds, nfe, display_stats):
         for j in range(len(problems)):
             if isinstance(problems[j], tuple):
                 problem = problems[j][0]
-                
+
                 if isinstance(problem, type):
                     problem = problem()
-                
+
                 if len(problems[j]) >= 2:
                     problem_name = problems[j][1]
                 else:
                     problem_name = problem.__class__.__name__
             else:
                 problem = problems[j]
-                
+
                 if isinstance(problem, type):
                     problem = problem()
-                
+
                 problem_name = problem.__class__.__name__
-                    
+
             if i == 0:
                 if problem_name in existing_problems:
                     raise PlatypusError("only one problem with name " + problem_name + " can be run")
@@ -123,25 +118,23 @@ def evaluate_job_generator(algorithms, problems, seeds, nfe, display_stats):
 
             for k in range(seeds):
                 yield ExperimentJob(algorithm(problem, **kwargs),
-                                  nfe,
-                                  algorithm_name,
-                                  problem_name,
-                                  k,
-                                  display_stats)
-                
-def experiment(algorithms = [],
-               problems = [],
-               seeds = 10,
+                                    nfe,
+                                    algorithm_name,
+                                    problem_name,
+                                    k,
+                                    display_stats)
+
+def experiment(algorithms=[],
+               problems=[],
+               seeds=10,
                nfe=10000,
-               evaluator = None,
-               display_stats = False):
+               evaluator=None,
+               display_stats=False):
     """Run experiments.
-    
+
     Used to run experiments where one or more algorithms are tested on one or
-    more problems.  Returns a dict containing the results.  The dict is of
-    the form:
-        pareto_set = result["algorithm"]["problem"][seed_index]
-    
+    more problems.
+
     Parameters
     ----------
     algorithms : list
@@ -156,95 +149,132 @@ def experiment(algorithms = [],
         of a Problem, or a tuple defining ``(type, name)``, where type is the
         Problem's type and name is a human-readable name for the problem.  All
         problems must have unique names.  If a name is not provided, the type
-        name is used. 
+        name is used.
     seeds : int
-        The number of replicates of each experiment to run
+        The number of replicates of each experiment to run.
     nfe : int
-        The number of function evaluations allotted to each experiment
+        The number of function evaluations to run each algorithm.
+    evaluator : Evaluator
+        The evaluator used to distribute individual jobs.
     display_stats : bool
-        If True, the progress of the experiments is output to the screen
+        If :code:`True`, the progress of the experiments is output to the
+        screen.
+
+    Returns
+    -------
+    A nested :code:`dict` containing the results from each individual run.
+    The levels are keyed by the algorithm name, problem name, and seed number.
+    For instance::
+
+        pareto_set = result["algorithm"]["problem"][seed]
     """
     if not isinstance(algorithms, list):
         algorithms = [algorithms]
-    
+
     if not isinstance(problems, list):
         problems = [problems]
-    
+
     # construct the jobs to run
     generator = evaluate_job_generator(algorithms, problems, seeds, nfe, display_stats)
-         
+
     # process the jobs
     if evaluator is None:
-        from .config import PlatypusConfig
         evaluator = PlatypusConfig.default_evaluator
-    
-    job_results = evaluator.evaluate_all(generator)    
-    
+
+    job_results = evaluator.evaluate_all(generator)
+
     # convert results to structured format
     results = OrderedDict()
     count = 0
-    
+
     for job in job_results:
-        if not job.algorithm_name in results:
+        if job.algorithm_name not in results:
             results[job.algorithm_name] = {}
-            
-        if not job.problem_name in results[job.algorithm_name]:
+
+        if job.problem_name not in results[job.algorithm_name]:
             results[job.algorithm_name][job.problem_name] = []
-            
+
         results[job.algorithm_name][job.problem_name].append(job.instance.result)
         count += 1
-                
+
     return results
 
 def calculate_job_generator(results, indicators):
-    for algorithm in six.iterkeys(results):
-        for problem in six.iterkeys(results[algorithm]):
+    for algorithm in results.keys():
+        for problem in results[algorithm].keys():
             for result_set in results[algorithm][problem]:
                 yield IndicatorJob(algorithm, problem, result_set, indicators)
 
 def calculate(results,
-              indicators = [],
-              evaluator = None):
+              indicators=[],
+              evaluator=None):
+    """
+    Calculate performance indicators on the results of an experiment.
+
+    Parameters
+    ----------
+    results : dict
+        The results produced by running :meth:`experiment`.
+    indicators : list of Indicator
+        The performance indicators to evaluate.
+    evaluator : Evaluator
+        The evaluator used to distribute individual jobs.
+
+    Returns
+    -------
+    A nested :code:`dict` containing the computed performance indicators.
+    The levels are keyed by the algorithm name, problem name, and indicator
+    name.
+    """
     if not isinstance(indicators, list):
         indicators = [indicators]
-        
+
     if evaluator is None:
-        from .config import PlatypusConfig
         evaluator = PlatypusConfig.default_evaluator
-    
+
     generator = calculate_job_generator(results, indicators)
     indicator_results = evaluator.evaluate_all(generator)
-    
+
     results = OrderedDict()
-    
+
     for job in indicator_results:
-        if not job.algorithm_name in results:
+        if job.algorithm_name not in results:
             results[job.algorithm_name] = {}
-            
-        if not job.problem_name in results[job.algorithm_name]:
+
+        if job.problem_name not in results[job.algorithm_name]:
             results[job.algorithm_name][job.problem_name] = {}
-            
+
         for i in range(len(indicators)):
             indicator_name = indicators[i].__class__.__name__
-            
-            if not indicator_name in results[job.algorithm_name][job.problem_name]:
+
+            if indicator_name not in results[job.algorithm_name][job.problem_name]:
                 results[job.algorithm_name][job.problem_name][indicator_name] = []
-            
+
             results[job.algorithm_name][job.problem_name][indicator_name].append(job.results[i])
 
     return results
-    
-def display(results, ndigits=None):
-    for algorithm in six.iterkeys(results):
-        print(algorithm)
-        for problem in six.iterkeys(results[algorithm]):
+
+def display(results, ndigits=None, file=sys.stdout):
+    """Pretty-prints the results.
+
+    Parameters
+    ----------
+    results : dict
+        The results produced by running :meth:`experiment`.
+    ndigits : int, optional
+        The number of digits to display.
+    file : file-like
+        The file to store the results.  The default prints to standard output.
+    """
+    for algorithm in results.keys():
+        print(f"{algorithm}:", file=file)
+        for problem in results[algorithm].keys():
             if isinstance(results[algorithm][problem], dict):
-                print("   ", problem)
-                for indicator in six.iterkeys(results[algorithm][problem]):
+                print(f"    {problem}:")
+                for indicator in results[algorithm][problem].keys():
                     if ndigits:
-                        print("       ", indicator, ":", list(map(functools.partial(round, ndigits=ndigits), results[algorithm][problem][indicator])))
+                        print(f"        {indicator}: {list(map(functools.partial(round, ndigits=ndigits), results[algorithm][problem][indicator]))}", file=file)
                     else:
-                        print("       ", indicator, ":", results[algorithm][problem][indicator])
+                        print(f"        {indicator}: {results[algorithm][problem][indicator]}", file=file)
             else:
-                print("   ", problem, ":", results[algorithm][problem])
-            
+                print(f"    {problem}: {results[algorithm][problem]}", file=file)

@@ -10,8 +10,9 @@ optimization.
 
 .. toctree::
    :maxdepth: 2
-   
+
    getting-started
+   types
    experimenter
-
-
+   cli
+   api/platypus

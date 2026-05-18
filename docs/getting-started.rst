@@ -5,15 +5,14 @@ Getting Started
 Installing Platypus
 -------------------
 
-To install the latest development version of Platypus, run the following
-commands.  Note that Platypus is under active development, and as such may
-contain bugs.
+To install the latest version of Platypus, run the following commands.
 
 ::
 
-    git clone https://github.com/Project-Platypus/Platypus.git
-    cd Platypus
-    python setup.py develop
+   pip install -U build setuptools
+   git clone https://github.com/Project-Platypus/Platypus.git
+   cd Platypus
+   python -m build
 
 A Simple Example
 ----------------
@@ -21,25 +20,25 @@ A Simple Example
 As an initial example, we will solve the well-known two objective DTLZ2 problem
 using the NSGA-II algorithm:
 
-.. literalinclude:: ../examples/simple.py
+.. literalinclude:: ../examples/print_results.py
    :language: python
 
 The output shows on each line the objectives for a Pareto optimal solution:
 
 .. code::
 
-    [1.00289403128, 6.63772921439e-05]
-    [0.000320076737668, 1.00499316652]
-    [1.00289403128, 6.63772921439e-05]
-    [0.705383878891, 0.712701387377]
-    [0.961083112366, 0.285860932437]
-    [0.729124908607, 0.688608373855]
-    ...
+   [1.00289403128, 6.63772921439e-05]
+   [0.000320076737668, 1.00499316652]
+   [1.00289403128, 6.63772921439e-05]
+   [0.705383878891, 0.712701387377]
+   [0.961083112366, 0.285860932437]
+   [0.729124908607, 0.688608373855]
+   ...
 
 If *matplotlib* is available, we can also plot the results.  Note that
 *matplotlib* must be installed separately.  Running the following code
 
-.. literalinclude:: ../examples/simple_plot.py
+.. literalinclude:: ../examples/plot_results.py
    :language: python
 
 produce a plot similar to:
@@ -57,16 +56,8 @@ decision variables and selected the Simulated Binary Crossover (SBX) and
 Polynomial Mutation (PM) operators.  One can easily switch to using different
 operators, such as Parent-Centric Crossover (PCX):
 
-.. code:: python
-
-    from platypus.algorithms import NSGAII
-    from platypus.problems import DTLZ2
-    from platypus.operators import PCX
-
-    problem = DTLZ2()
-
-    algorithm = NSGAII(problem, variator = PCX())
-    algorithm.run(10000)
+.. literalinclude:: ../examples/customize_variator.py
+   :language: python
 
 Defining Unconstrained Problems
 -------------------------------
@@ -83,7 +74,7 @@ Schaffer problem, defined by
 
 can be programmed as follows:
 
-.. literalinclude:: ../examples/custom_problem_1.py
+.. literalinclude:: ../examples/custom_problem_function.py
    :language: python
 
 When creating the ``Problem`` class, we provide two arguments: the number
@@ -101,7 +92,7 @@ An equivalent but more reusable way to define this problem is extending the
 ``Problem`` class.  The types are defined in the ``__init__`` method, and the
 actual evaluation is performed in the ``evaluate`` method.
 
-.. literalinclude:: ../examples/custom_problem_2.py
+.. literalinclude:: ../examples/custom_problem_class.py
    :language: python
 
 Defining Constrained Problems
@@ -127,7 +118,7 @@ is:
 
 Then, we program this problem within Platypus as follows:
 
-.. literalinclude:: ../examples/constrained_problem_1.py
+.. literalinclude:: ../examples/constrained_problem_function.py
    :language: python
 
 First, we call ``Problem(2, 2, 2)`` to create a problem with two decision
@@ -146,13 +137,13 @@ In this case we would need to filter out the infeasible solutions:
 
 .. code:: python
 
-    feasible_solutions = [s for s in algorithm.result if s.feasible]
+   feasible_solutions = [s for s in algorithm.result if s.feasible]
 
 We could also get only the non-dominated solutions:
 
 .. code:: python
 
-    nondominated_solutions = nondominated(algorithm.result)
+   nondominated_solutions = nondominated(algorithm.result)
 
 
 Alternatively, we can develop a reusable class for this problem by extending
@@ -160,7 +151,7 @@ the ``Problem`` class.  Like before, we move the type and constraint
 declarations to the ``__init__`` method and assign the solution's
 ``constraints`` attribute in the ``evaluate`` method.
 
-.. literalinclude:: ../examples/constrained_problem_2.py
+.. literalinclude:: ../examples/constrained_problem_class.py
    :language: python
 
 In these examples, we have assumed that the objectives are being minimized.
@@ -169,4 +160,4 @@ objective by setting the ``directions`` attribute.  For example:
 
 .. code:: python
 
-    problem.directions[:] = Problem.MAXIMIZE
+   problem.directions[:] = Direction.MAXIMIZE
